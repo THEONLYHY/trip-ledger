@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>旅行记账表</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
   <style>
     :root {
       --bg-main: #f5f5f7;
@@ -154,6 +154,9 @@
       padding: 4px 0 2px;
       outline: none;
       background: transparent;
+      min-width: 0;
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     .place-input:focus {
@@ -360,12 +363,19 @@
     }
 
     @media (max-width: 720px) {
+      body {
+        padding: 8px 4px;
+      }
+
       .sheet {
         padding: 12px 10px 16px;
+        max-width: 100%;
+        border-radius: 8px;
       }
 
       .layout {
         grid-template-columns: 1fr;
+        gap: 8px;
       }
 
       .sidebar {
@@ -376,16 +386,107 @@
         min-height: auto;
       }
 
+      .place-row {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
       .place-input {
-        font-size: 22px;
+        font-size: 20px;
+        padding: 6px 0 4px;
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 100%;
+      }
+
+      .today-info {
+        font-size: 11px;
+        margin-left: 0;
+        width: 100%;
+        flex: 1 1 100%;
+      }
+
+      .summary-row {
+        flex-wrap: wrap;
+        font-size: 14px;
+        gap: 4px;
+      }
+
+      .summary-amount {
+        font-size: 18px;
       }
 
       .form-row {
         align-items: flex-start;
+        gap: 6px;
+        font-size: 13px;
+      }
+
+      .input,
+      .select {
+        font-size: 16px;
+        padding: 8px 10px;
+        min-height: 44px;
+      }
+
+      .input-date {
+        width: 100%;
+      }
+
+      .input-amount {
+        width: 100px;
+      }
+
+      .input-note {
+        flex: 1 1 100%;
       }
 
       .btn {
         margin-top: 4px;
+        padding: 8px 16px;
+        font-size: 14px;
+        min-height: 44px;
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 8px 6px;
+      }
+
+      .col-date {
+        width: 60%;
+      }
+
+      .col-amount {
+        width: 40%;
+      }
+    }
+
+    /* iPhone 特定优化 */
+    @media (max-width: 480px) {
+      .sheet {
+        padding: 10px 8px 14px;
+      }
+
+      .place-input {
+        font-size: 18px;
+        padding: 8px 0 6px;
+      }
+
+      .summary-amount {
+        font-size: 16px;
+      }
+
+      .form-row {
+        font-size: 12px;
+      }
+
+      .field-label {
+        font-size: 12px;
       }
     }
   </style>
