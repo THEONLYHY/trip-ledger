@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>旅行记账表</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg-main: #f5f5f7;
+      --sheet-bg: #ffffff;
+      --border: #d1d1d6;
+      --text-main: #1c1c1e;
+      --text-sub: #8e8e93;
+      --accent: #007aff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        system-ui, -apple-system-ui, "Segoe UI", sans-serif;
+      background: var(--bg-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px 8px;
+      color: var(--text-main);
+    }
+
+    .sheet {
+      width: 100%;
+      max-width: 960px;
+      background: var(--sheet-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      padding: 16px 18px 20px;
+    }
+
+    /* 左右布局：左侧地点列表，右侧当前地点明细 */
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .sidebar {
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+      padding-right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 320px;
+    }
+
+    .sidebar-header {
+      font-size: 13px;
+      color: var(--text-sub);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .place-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: stretch;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .place-chip {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #f7f7fa;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .place-chip.active {
+      background: #e5f0ff;
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .place-chip-add {
+      background: #f5f5f7;
+      border-style: dashed;
+      color: var(--text-sub);
+    }
+
+    .place-chip-name {
+      flex: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .place-chip-delete {
+      border: none;
+      background: transparent;
+      color: #c0c0c8;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0 2px;
+      opacity: 0;
+      transition: opacity 0.12s ease, color 0.12s ease, transform 0.05s ease;
+    }
+
+    .place-chip:hover .place-chip-delete {
+      opacity: 1;
+    }
+
+    .place-chip-delete:hover {
+      color: #ff3b30;
+    }
+
+    .place-chip-delete:active {
+      transform: scale(0.9);
+    }
+
+    .sidebar-footer-hint {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .place-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .place-input {
+      flex: 1;
+      font-size: 26px;
+      font-weight: 600;
+      border: none;
+      border-bottom: 1px solid transparent;
+      padding: 4px 0 2px;
+      outline: none;
+      background: transparent;
+    }
+
+    .place-input:focus {
+      border-color: var(--border);
+    }
+
+    .today-info {
+      font-size: 13px;
+      color: var(--text-sub);
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 4px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+    .summary-label {
+      color: var(--text-sub);
+    }
+
+    .summary-amount {
+      font-weight: 600;
+      font-size: 20px;
+    }
+
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    .field-label {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+
+    .input,
+    .select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 14px;
+      min-width: 80px;
+      background: #fbfbfd;
+      outline: none;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease,
+        background-color 0.12s ease;
+    }
+
+    .input:focus,
+    .select:focus {
+      border-color: var(--accent);
+      background: #ffffff;
+      box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.15);
+    }
+
+    .input-amount {
+      width: 80px;
+    }
+
+    .input-note {
+      flex: 1 1 200px;
+    }
+
+    .input-date {
+      width: 130px;
+    }
+
+    .btn {
+      border-radius: 6px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+      padding: 4px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 6px;
+      transition: background-color 0.12s ease, transform 0.05s ease,
+        box-shadow 0.05s ease;
+      box-shadow: 0 4px 10px rgba(0, 122, 255, 0.25);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(0, 122, 255, 0.35);
+    }
+
+    .btn-secondary {
+      background: #f5f5f7;
+      color: var(--text-sub);
+      border-color: #d2d2d7;
+      box-shadow: none;
+    }
+
+    .btn-secondary:active {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    /* 表格样式 */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+      table-layout: fixed;
+    }
+
+    thead {
+      background: #f2f2f7;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    th {
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .col-date {
+      width: 26%;
+    }
+
+    .col-amount {
+      width: 18%;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .record-note {
+      cursor: pointer;
+    }
+
+    .record-note:hover {
+      background: #f7f7fa;
+    }
+
+    .record-amount-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .record-delete {
+      border: none;
+      background: transparent;
+      color: #c0c0c8;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.12s ease, transform 0.05s ease, opacity 0.12s ease;
+      opacity: 0;
+    }
+
+    tr:hover .record-delete {
+      opacity: 1;
+    }
+
+    .record-delete:hover {
+      color: #ff3b30;
+    }
+
+    .record-delete:active {
+      transform: scale(0.9);
+    }
+
+    .date-row td {
+      background: #fafafa;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .date-row td:hover {
+      background: #f0f0f5;
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: var(--text-sub);
+      padding: 18px 8px;
+    }
+
+    @media (max-width: 720px) {
+      .sheet {
+        padding: 12px 10px 16px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding-right: 0;
+        padding-bottom: 8px;
+        min-height: auto;
+      }
+
+      .place-input {
+        font-size: 22px;
+      }
+
+      .form-row {
+        align-items: flex-start;
+      }
+
+      .btn {
+        margin-top: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="layout">
+      <!-- 左侧：地点列表 -->
+      <aside class="sidebar">
+        <div class="sidebar-header">地点</div>
+        <div class="place-list" id="placeList"></div>
+        <div class="sidebar-footer-hint">
+          点击名称切换地点，<br />
+          每个地点都有自己的表格。
+        </div>
+      </aside>
+
+      <!-- 右侧：当前地点详情 -->
+      <main class="main">
+        <!-- 当前地点名称输入 + 今天信息 -->
+        <div class="place-row">
+          <input
+            id="placeInput"
+            class="place-input"
+            type="text"
+            placeholder="输入地点名称，例如：云南、北海道..."
+          />
+          <div class="today-info" id="todayInfo"></div>
+        </div>
+
+        <div class="summary-row">
+          <div class="summary-label">当前地点累计支出：</div>
+          <div class="summary-amount" id="todayTotal">¥0.00</div>
+          <div class="summary-label" style="font-size: 12px;">
+            其中今天 <span id="placeTotalBrief">¥0.00</span>
+          </div>
+        </div>
+
+        <!-- 输入区域：日期 + 金额 + 分类 + 备注 -->
+        <div class="form-row">
+          <span class="field-label">日期</span>
+          <input
+            id="dateInput"
+            class="input input-date"
+            type="date"
+          />
+
+          <span class="field-label">金额</span>
+          <input
+            id="amountInput"
+            class="input input-amount"
+            type="text"
+            inputmode="decimal"
+            placeholder="116 或 free"
+          />
+
+          <span class="field-label">分类</span>
+          <select id="categorySelect" class="select">
+            <option value="餐饮">餐饮</option>
+            <option value="交通">交通</option>
+            <option value="购物">购物</option>
+            <option value="其他">其他</option>
+          </select>
+
+          <span class="field-label">内容 / 备注</span>
+          <input
+            id="noteInput"
+            class="input input-note"
+            type="text"
+            placeholder="早餐-机场牛肉面、的士-酒店、晚餐-烧烤..."
+          />
+
+          <div class="spacer"></div>
+
+          <button id="clearAllBtn" type="button" class="btn btn-secondary">
+            清空当前地点
+          </button>
+          <button id="addBtn" type="button" class="btn">
+            记录
+          </button>
+        </div>
+
+        <!-- 表格：左“日期 / 内容”，右“费用” -->
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-date">日期 / 内容</th>
+                <th class="col-amount">费用</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr class="empty-row">
+                <td colspan="2">还没有记录，先在上方添加一笔吧。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = "trip-ledger-by-place-v1";
+
+      const placeListEl = document.getElementById("placeList");
+      const placeInput = document.getElementById("placeInput");
+      const todayInfoEl = document.getElementById("todayInfo");
+
+      const dateInput = document.getElementById("dateInput");
+      const amountInput = document.getElementById("amountInput");
+      const categorySelect = document.getElementById("categorySelect");
+      const noteInput = document.getElementById("noteInput");
+      const addBtn = document.getElementById("addBtn");
+      const clearAllBtn = document.getElementById("clearAllBtn");
+
+      const tableBody = document.getElementById("tableBody");
+      const todayTotalEl = document.getElementById("todayTotal");
+      const placeTotalBriefEl = document.getElementById("placeTotalBrief");
+
+      function formatDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+
+      function formatShortDateFromKey(dateKey) {
+        const parts = dateKey.split("-");
+        if (parts.length === 3) {
+          const m = Number(parts[1]);
+          const d = Number(parts[2]);
+          if (!Number.isNaN(m) && !Number.isNaN(d)) {
+            return `${m}.${d}`;
+          }
+        }
+        return dateKey;
+      }
+
+      function formatAmount(n) {
+        if (!isFinite(n)) return "0.00";
+        return n.toFixed(2);
+      }
+
+      function getTodayDateKey() {
+        return formatDate(new Date());
+      }
+
+      function createDefaultState() {
+        return {
+          currentPlaceIndex: 0,
+          places: [
+            {
+              name: "未命名地点",
+              records: [],
+            },
+          ],
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return createDefaultState();
+          const parsed = JSON.parse(raw);
+          if (
+            !parsed ||
+            !Array.isArray(parsed.places) ||
+            parsed.places.length === 0
+          ) {
+            return createDefaultState();
+          }
+          if (
+            typeof parsed.currentPlaceIndex !== "number" ||
+            parsed.currentPlaceIndex < 0 ||
+            parsed.currentPlaceIndex >= parsed.places.length
+          ) {
+            parsed.currentPlaceIndex = 0;
+          }
+          return parsed;
+        } catch (e) {
+          console.warn("加载数据失败，将重置为默认", e);
+          return createDefaultState();
+        }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function getCurrentPlace(state) {
+        return state.places[state.currentPlaceIndex] || state.places[0];
+      }
+
+      function calculateTodayTotal(place) {
+        const todayKey = getTodayDateKey();
+        return (place.records || [])
+          .filter((r) => r.dateKey === todayKey)
+          .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+      }
+
+      function calculatePlaceTotal(place) {
+        return (place.records || []).reduce(
+          (sum, r) => sum + (Number(r.amount) || 0),
+          0
+        );
+      }
+
+      function render() {
+        const state = loadState();
+        const place = getCurrentPlace(state);
+
+        // 渲染地点列表 chips
+        placeListEl.innerHTML = "";
+        state.places.forEach((p, idx) => {
+          const chip = document.createElement("div");
+          chip.className =
+            "place-chip" + (idx === state.currentPlaceIndex ? " active" : "");
+
+          const nameSpan = document.createElement("button");
+          nameSpan.type = "button";
+          nameSpan.className = "place-chip-name";
+          nameSpan.textContent = p.name || "未命名地点";
+          nameSpan.title = p.name || "未命名地点";
+          nameSpan.addEventListener("click", () => {
+            const s = loadState();
+            s.currentPlaceIndex = idx;
+            saveState(s);
+            render();
+          });
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "place-chip-delete";
+          deleteBtn.textContent = "×";
+          deleteBtn.title = "删除这个地点";
+          deleteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const s = loadState();
+            if (s.places.length <= 1) {
+              alert("至少保留一个地点，不能全部删空。");
+              return;
+            }
+            const ok = confirm(
+              `确定要删除地点“${s.places[idx].name || "未命名地点"}”及其所有记录吗？此操作无法撤销。`
+            );
+            if (!ok) return;
+            s.places.splice(idx, 1);
+            if (s.currentPlaceIndex >= s.places.length) {
+              s.currentPlaceIndex = s.places.length - 1;
+            } else if (idx < s.currentPlaceIndex) {
+              s.currentPlaceIndex -= 1;
+            }
+            saveState(s);
+            render();
+          });
+
+          chip.appendChild(nameSpan);
+          chip.appendChild(deleteBtn);
+          placeListEl.appendChild(chip);
+        });
+
+        // 添加“+ 新地点”按钮
+        const addChip = document.createElement("button");
+        addChip.type = "button";
+        addChip.className = "place-chip place-chip-add";
+        addChip.textContent = "+ 新地点";
+        addChip.addEventListener("click", () => {
+          const s = loadState();
+          const newName = "新地点" + (s.places.length + 1);
+          s.places.push({ name: newName, records: [] });
+          s.currentPlaceIndex = s.places.length - 1;
+          saveState(s);
+          render();
+          // 让输入框切到新地点名称并选中
+          requestAnimationFrame(() => {
+            placeInput.focus();
+            placeInput.select?.();
+          });
+        });
+        placeListEl.appendChild(addChip);
+
+        // 当前地点名称
+        placeInput.value = place.name || "";
+
+        // 当前地点累计总支出（所有日期）——显示在大号数字
+        const placeTotal = calculatePlaceTotal(place);
+        todayTotalEl.textContent = "¥" + formatAmount(placeTotal);
+
+        // 当前地点今日总支出——显示在小字“其中今天”
+        const todayTotal = calculateTodayTotal(place);
+        placeTotalBriefEl.textContent = "¥" + formatAmount(todayTotal);
+
+        // 表格内容（只看当前地点）
+        const records = place.records || [];
+        tableBody.innerHTML = "";
+        if (!records.length) {
+          const tr = document.createElement("tr");
+          tr.className = "empty-row";
+          const td = document.createElement("td");
+          td.colSpan = 2;
+          td.textContent = "还没有记录，先在上方添加一笔吧。";
+          tr.appendChild(td);
+          tableBody.appendChild(tr);
+          return;
+        }
+
+        // 按日期分组
+        const byDate = {};
+        records.forEach((r) => {
+          if (!byDate[r.dateKey]) byDate[r.dateKey] = [];
+          byDate[r.dateKey].push(r);
+        });
+
+        const sortedDates = Object.keys(byDate).sort().reverse();
+
+        sortedDates.forEach((dateKey) => {
+          const group = byDate[dateKey].slice().sort((a, b) => a.id - b.id);
+
+          const dateTr = document.createElement("tr");
+          dateTr.className = "date-row";
+          const dateTd = document.createElement("td");
+          dateTd.textContent = formatShortDateFromKey(dateKey);
+          const emptyTd = document.createElement("td");
+          emptyTd.textContent = "";
+          dateTr.appendChild(dateTd);
+          dateTr.appendChild(emptyTd);
+          // 点击日期行可以修改该日期（影响这个日期下的所有记录）
+          dateTr.addEventListener("click", () => {
+            const newDate = prompt(
+              "修改日期（格式：YYYY-MM-DD）",
+              dateKey
+            );
+            if (!newDate) return;
+            const trimmed = newDate.trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+              alert("日期格式不正确，请使用 YYYY-MM-DD，例如 2025-10-03。");
+              return;
+            }
+            const s = loadState();
+            const p = getCurrentPlace(s);
+            (p.records || []).forEach((r) => {
+              if (r.dateKey === dateKey) {
+                r.dateKey = trimmed;
+              }
+            });
+            saveState(s);
+            render();
+          });
+          tableBody.appendChild(dateTr);
+
+          group.forEach((r) => {
+            const tr = document.createElement("tr");
+
+            const leftTd = document.createElement("td");
+            leftTd.className = "record-note";
+            const note =
+              (r.note && r.note.trim()) ||
+              (r.category ? r.category : "未分类");
+            leftTd.textContent = note;
+            // 点击备注可以修改本条记录的备注
+            leftTd.addEventListener("click", () => {
+              const s = loadState();
+              const p = getCurrentPlace(s);
+              const target = (p.records || []).find(
+                (rec) => rec.id === r.id
+              );
+              if (!target) return;
+              const newNote = prompt(
+                "修改内容 / 备注：",
+                target.note || note
+              );
+              if (newNote === null) return;
+              target.note = newNote.trim();
+              saveState(s);
+              render();
+            });
+
+            const rightTd = document.createElement("td");
+            rightTd.className = "col-amount";
+            const wrap = document.createElement("div");
+            wrap.className = "record-amount-wrap";
+
+            const amountSpan = document.createElement("span");
+            if (
+              r.amountText &&
+              r.amountText.trim().toLowerCase() === "free"
+            ) {
+              amountSpan.textContent = "free";
+            } else {
+              amountSpan.textContent = formatAmount(Number(r.amount) || 0);
+            }
+            // 点击金额可以修改本条记录金额
+            amountSpan.addEventListener("click", () => {
+              const s = loadState();
+              const p = getCurrentPlace(s);
+              const target = (p.records || []).find(
+                (rec) => rec.id === r.id
+              );
+              if (!target) return;
+              const currentText =
+                target.amountText ||
+                (Number.isFinite(target.amount)
+                  ? String(target.amount)
+                  : "");
+              const newAmount = prompt(
+                "修改金额（数字或 free）：",
+                currentText
+              );
+              if (newAmount === null) return;
+              const trimmed = newAmount.trim();
+              target.amountText = trimmed;
+              if (trimmed.toLowerCase() === "free") {
+                target.amount = 0;
+              } else {
+                const num = Number(trimmed);
+                if (Number.isNaN(num) || num < 0) {
+                  alert("金额不合法，请输入非负数字或 free。");
+                  return;
+                }
+                target.amount = num;
+              }
+              saveState(s);
+              render();
+            });
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
+            deleteBtn.className = "record-delete";
+            deleteBtn.textContent = "×";
+            deleteBtn.title = "删除这条记录";
+            deleteBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const s = loadState();
+              const p = getCurrentPlace(s);
+              const ok = confirm("确定要删除这条记录吗？");
+              if (!ok) return;
+              p.records = (p.records || []).filter(
+                (rec) => rec.id !== r.id
+              );
+              saveState(s);
+              render();
+            });
+
+            wrap.appendChild(amountSpan);
+            wrap.appendChild(deleteBtn);
+            rightTd.appendChild(wrap);
+
+            tr.appendChild(leftTd);
+            tr.appendChild(rightTd);
+            tableBody.appendChild(tr);
+          });
+        });
+      }
+
+      function addRecord() {
+        const state = loadState();
+        const place = getCurrentPlace(state);
+
+        // 日期（可修改），默认今天
+        let dateKey = dateInput.value;
+        if (!dateKey) {
+          dateKey = getTodayDateKey();
+        }
+
+        const rawAmount = amountInput.value.trim();
+        const note = noteInput.value.trim();
+        const category = categorySelect.value || "其他";
+
+        if (!rawAmount) {
+          amountInput.focus();
+          return;
+        }
+
+        let amount = 0;
+        let amountText = rawAmount;
+        if (rawAmount.toLowerCase() !== "free") {
+          amount = Number(rawAmount);
+          if (Number.isNaN(amount) || amount < 0) {
+            amountInput.focus();
+            amountInput.select?.();
+            return;
+          }
+        }
+
+        const record = {
+          id: Date.now(),
+          dateKey,
+          amount,
+          amountText,
+          category,
+          note,
+        };
+
+        place.records.push(record);
+        saveState(state);
+        render();
+
+        amountInput.value = "";
+        noteInput.value = "";
+        amountInput.focus();
+      }
+
+      function clearCurrentPlace() {
+        const state = loadState();
+        const place = getCurrentPlace(state);
+        if (!place.records.length) return;
+        const ok = confirm(
+          "确定要清空当前地点的所有记录吗？此操作无法撤销。"
+        );
+        if (!ok) return;
+        place.records = [];
+        saveState(state);
+        render();
+      }
+
+      function renameCurrentPlace(newNameRaw) {
+        const state = loadState();
+        const place = getCurrentPlace(state);
+        const trimmed = (newNameRaw || "").trim();
+        place.name = trimmed || "未命名地点";
+        saveState(state);
+        render();
+      }
+
+      function initTodayInfo() {
+        const now = new Date();
+        const ymd = formatDate(now);
+        const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+        todayInfoEl.textContent = `${ymd} · ${weekdays[now.getDay()]}`;
+
+        // 日期输入默认值 = 今天
+        dateInput.value = ymd;
+      }
+
+      function init() {
+        initTodayInfo();
+        render();
+
+        addBtn.addEventListener("click", addRecord);
+        clearAllBtn.addEventListener("click", clearCurrentPlace);
+
+        amountInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addRecord();
+          }
+        });
+
+        // 改地点名称：失焦或回车时保存
+        placeInput.addEventListener("blur", () => {
+          renameCurrentPlace(placeInput.value);
+        });
+        placeInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            renameCurrentPlace(placeInput.value);
+            amountInput.focus();
+          }
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    })();
+  </script>
+</body>
+</html>
